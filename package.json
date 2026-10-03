@@ -1,0 +1,25 @@
+{
+  "name": "stride",
+  "version": "1.0.0",
+  "description": "Voice running coach that plans routes to places you love and turns miles into savings.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@photon-ai/imessage-kit": "^3.0.0",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "ws": "^8.22.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "better-sqlite3@13.0.3": true
+  }
+}

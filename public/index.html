@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Stride</title>
+  <meta name="description" content="Voice running coach that routes you to places you love and turns every mile into savings.">
+  <meta name="theme-color" content="#0f120e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Stride">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body data-view="plan">
+  <div id="map" role="application" aria-label="Route map"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent)"/><path d="M9 21c3-1 5-4 7-8s4-6 7-6" stroke="var(--accent-ink)" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="9" cy="21" r="2.6" fill="var(--accent-ink)"/></svg>
+      <span>Stride</span>
+    </div>
+    <button class="goal-chip" id="goalChip" type="button" aria-label="Open wallet">
+      <span class="goal-chip-top"><span id="goalName">Savings</span><span id="goalAmount">$0.00</span></span>
+      <span class="progress"><i id="goalBar"></i></span>
+    </button>
+  </header>
+
+  <div class="turn-banner" id="turnBanner" hidden>
+    <div class="turn-icon" id="turnIcon">↑</div>
+    <div class="turn-body">
+      <div class="turn-dist" id="turnDist"></div>
+      <div class="turn-text" id="turnText"></div>
+    </div>
+    <button class="icon-btn ghost" id="recenterBtn" type="button" aria-label="Follow runner">◎</button>
+  </div>
+
+  <div class="voice-bubble" id="voiceBubble" hidden aria-live="polite">
+    <div class="vb-user" id="vbUser"></div>
+    <div class="vb-bot" id="vbBot"></div>
+  </div>
+
+  <button class="mic-fab" id="micBtn" type="button" data-state="off" aria-label="Talk to your coach">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span id="micLabel">Talk</span>
+  </button>
+
+  <section class="sheet" id="sheet">
+    <div class="grabber" aria-hidden="true"></div>
+
+    <form class="ask" id="askForm" autocomplete="off">
+      <input id="askInput" type="text" placeholder="Ask Stride… “plan a 5K to coffee under $6”" aria-label="Type a command">
+      <span class="voice-mode" id="voiceMode">Voice</span>
+    </form>
+
+    <!-- PLAN -->
+    <div class="view" data-view="plan">
+      <div class="sheet-head">
+        <h1>Where are we running?</h1>
+        <button class="link" id="locateBtn" type="button">Use my location</button>
+      </div>
+      <p class="muted small" id="startLabel"></p>
+
+      <div class="field">
+        <div class="field-label"><span>Distance</span><output id="milesOut">3.1 mi</output></div>
+        <div class="chips" id="distanceChips">
+          <button type="button" data-miles="1">1 mi</button>
+          <button type="button" data-miles="2">2 mi</button>
+          <button type="button" data-miles="3.1">5K</button>
+          <button type="button" data-miles="5">5 mi</button>
+          <button type="button" data-miles="6.2">10K</button>
+        </div>
+        <input type="range" id="milesRange" min="0.5" max="13.1" step="0.1" value="3.1" aria-label="Distance in miles">
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Finish at</span></div>
+        <div class="chips cats" id="categoryChips">
+          <button type="button" data-cat="coffee">☕ Coffee</button>
+          <button type="button" data-cat="smoothie">🥤 Smoothie</button>
+          <button type="button" data-cat="grocery">🛒 Grocery</button>
+          <button type="button" data-cat="treat">🍦 Treat</button>
+          <button type="button" data-cat="atm">🏧 ATM</button>
+          <button type="button" data-cat="any">✨ Surprise</button>
+        </div>
+      </div>
+
+      <div class="field inline" id="budgetField">
+        <label class="field-label" for="budgetInput"><span>Spending budget</span></label>
+        <div class="money-input"><span>$</span><input id="budgetInput" type="number" min="0" step="0.5" inputmode="decimal"></div>
+      </div>
+
+      <button class="primary" id="findBtn" type="button">Find routes</button>
+      <p class="hint">Every mile moves <b id="perMileLabel">$1.00</b> into your savings goal.</p>
+    </div>
+
+    <!-- OPTIONS -->
+    <div class="view" data-view="options" hidden>
+      <div class="sheet-head">
+        <button class="icon-btn" id="backToPlan" type="button" aria-label="Back">←</button>
+        <h1>Pick your route</h1>
+      </div>
+      <p class="notice" id="routeNotice" hidden></p>
+      <div class="options" id="optionList"></div>
+      <button class="primary" id="startBtn" type="button" disabled>Start run</button>
+    </div>
+
+    <!-- RUN -->
+    <div class="view" data-view="run" hidden>
+      <div class="run-dest"><span id="runDest"></span><span id="runRemaining"></span></div>
+      <p class="gps-badge" id="gpsBadge" hidden></p>
+      <div class="progress big"><i id="runBar"></i></div>
+      <div class="stats">
+        <div><b id="statMiles">0.00</b><span>miles</span></div>
+        <div><b id="statTime">0:00</b><span>time</span></div>
+        <div><b id="statPace">--:--</b><span>pace /mi</span></div>
+        <div class="earned"><b id="statEarned">$0.00</b><span>earned</span></div>
+      </div>
+      <div class="run-controls">
+        <div class="segmented" id="modeToggle" role="group" aria-label="Tracking mode">
+          <button type="button" data-mode="sim">Simulate</button>
+          <button type="button" data-mode="gps">GPS</button>
+        </div>
+        <select id="simSpeed" aria-label="Simulation speed">
+          <option value="1">1×</option>
+          <option value="5">5×</option>
+          <option value="10">10×</option>
+          <option value="25">25×</option>
+          <option value="60">60×</option>
+        </select>
+        <span class="spacer"></span>
+        <button class="secondary" id="pauseBtn" type="button">Pause</button>
+        <button class="danger" id="endBtn" type="button">End</button>
+      </div>
+    </div>
+
+    <!-- RECAP -->
+    <div class="view" data-view="recap" hidden>
+      <p class="eyebrow">Run complete</p>
+      <h1 id="recapTitle"></h1>
+      <div class="stats">
+        <div><b id="recapMiles"></b><span>miles</span></div>
+        <div><b id="recapTime"></b><span>time</span></div>
+        <div><b id="recapPace"></b><span>pace /mi</span></div>
+        <div class="earned"><b id="recapEarned"></b><span>earned</span></div>
+      </div>
+
+      <div class="card" id="purchaseCard" hidden>
+        <div class="card-title">Grabbing something at <span id="recapPlace"></span>?</div>
+        <p class="muted small">Budget <b id="recapBudget"></b> · estimated price <b id="recapEst"></b></p>
+        <form class="row" id="purchaseForm">
+          <div class="money-input"><span>$</span><input id="spendInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Amount spent"></div>
+          <button class="primary sm" type="submit">Pay</button>
+          <button class="secondary sm" id="skipSpendBtn" type="button">Skip</button>
+        </form>
+        <div id="purchaseResult" hidden></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="recapGoalLine"></div>
+        <div class="progress"><i id="recapGoalBar"></i></div>
+        <p class="muted small" id="goalProjection"></p>
+      </div>
+      <button class="primary" id="againBtn" type="button">Plan another run</button>
+    </div>
+
+    <!-- WALLET -->
+    <div class="view" data-view="wallet" hidden>
+      <div class="sheet-head">
+        <button class="icon-btn" id="walletBack" type="button" aria-label="Back">←</button>
+        <h1>Wallet</h1>
+      </div>
+      <div class="balances">
+        <div class="card">
+          <span class="muted small">Checking</span>
+          <b class="big-num" id="checkingBal"></b>
+        </div>
+        <div class="card goal">
+          <span class="muted small" id="walletGoalName"></span>
+          <b class="big-num" id="walletGoalSaved"></b>
+          <div class="progress"><i id="walletGoalBar"></i></div>
+          <span class="muted small" id="walletGoalTarget"></span>
+        </div>
+      </div>
+
+      <div class="card nessie" id="nessieCard" hidden>
+        <div class="nessie-head">
+          <span class="nessie-dot" aria-hidden="true"></span>
+          <div>
+            <div class="card-title">Synced with Capital One Nessie</div>
+            <span class="muted small" id="nessieAccounts"></span>
+          </div>
+        </div>
+        <button class="secondary sm" id="verifyBtn" type="button">Verify balances</button>
+        <p class="small" id="verifyResult" hidden></p>
+      </div>
+
+      <form class="card goal-form" id="goalForm">
+        <div class="card-title">Goal &amp; rules</div>
+        <label>Goal name<input name="goalName" type="text" maxlength="40"></label>
+        <label>Target ($)<input name="goalTarget" type="number" min="1" step="1" inputmode="decimal"></label>
+        <label>Reward per mile ($)<input name="perMile" type="number" min="0.05" step="0.05" inputmode="decimal"></label>
+        <label>Skipped-run penalty ($)<input name="skipPenalty" type="number" min="0.5" step="0.5" inputmode="decimal"></label>
+        <button class="secondary" type="submit">Save</button>
+      </form>
+
+      <button class="secondary block" id="penaltyBtn" type="button"></button>
+
+      <h2>Activity</h2>
+      <ul class="tx-list" id="txList"></ul>
+      <button class="link danger-text" id="resetBtn" type="button">Reset demo data</button>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
