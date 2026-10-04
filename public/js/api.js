@@ -5,7 +5,12 @@ async function request(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (res.status === 401 && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event('stride:signed-out'));
+  if (!res.ok) {
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -13,6 +18,15 @@ const post = (path, body = {}) => request(path, { method: 'POST', body });
 
 export const api = {
   config: () => request('/api/config'),
+  me: () => request('/api/me'),
+  updateMe: (fields) => post('/api/me', fields),
+  signup: (fields) => post('/api/auth/signup', fields),
+  login: (fields) => post('/api/auth/login', fields),
+  guest: () => post('/api/auth/guest'),
+  logout: () => post('/api/auth/logout'),
+  pushSubscribe: (subscription) => post('/api/push/subscribe', subscription),
+  pushUnsubscribe: (endpoint) => post('/api/push/unsubscribe', { endpoint }),
+  pushTest: () => post('/api/push/test'),
   bank: () => request('/api/bank'),
   transfer: (amount, memo) => post('/api/bank/transfer', { amount, memo }),
   purchase: (merchant, amount, budget) => post('/api/bank/purchase', { merchant, amount, budget }),

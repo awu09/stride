@@ -509,3 +509,35 @@ body[data-view='run'] .ask { display: none; }
 .gps-badge[data-status='good'] { color: var(--good); }
 .gps-badge[data-status='weak'], .gps-badge[data-status='waiting'] { color: var(--warn); }
 .gps-badge[data-status='denied'], .gps-badge[data-status='error'], .gps-badge[data-status='unsupported'] { color: var(--danger); }
+
+/* ---------- accounts ---------- */
+body[data-view='auth'] .goal-chip,
+body[data-view='auth'] .mic-fab,
+body[data-view='auth'] .ask { display: none; }
+.auth-hero { margin: 4px 0 16px; }
+.auth-hero h1 { font-size: 28px; }
+.auth-hero p { margin: 6px 0 0; }
+.auth-tabs { display: flex; width: 100%; }
+.auth-tabs button { flex: 1; }
+.auth-form { display: grid; gap: 12px; margin-top: 14px; }
+.auth-form label, .phone-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.auth-form input, .phone-form input {
+  padding: 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 16px; /* 16px keeps iOS from zooming into the field */
+}
+.auth-form input:focus, .phone-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.auth-form .primary { margin-top: 4px; }
+.form-error { margin: 0; color: var(--danger); font-size: 13px; font-weight: 500; }
+.link.center { display: block; margin: 14px auto 0; }
+.account { display: grid; gap: 12px; }
+.account-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.account-head .card-title { margin: 0; }
+.account .row { margin-top: 0; flex-wrap: wrap; }
+.guest-upgrade { padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.guest-upgrade p { margin: 0 0 10px; }
+.phone-form { align-items: end; }
+.phone-form label { flex: 1; min-width: 180px; }

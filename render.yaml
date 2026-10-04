@@ -1,0 +1,21 @@
+# One-click deploy on Render (render.com → New → Blueprint → pick this repo).
+# The disk keeps the database and notification keys across deploys (needs a paid instance).
+services:
+  - type: web
+    name: stride
+    runtime: docker
+    plan: starter
+    healthCheckPath: /healthz
+    disk:
+      name: stride-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/stride.db
+      - key: XAI_API_KEY
+        sync: false
+      - key: NESSIE_API_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false

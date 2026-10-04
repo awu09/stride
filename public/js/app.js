@@ -700,15 +700,15 @@ $('resetBtn').addEventListener('click', async () => {
     $('resetBtn').textContent = 'Tap again to reset';
     setTimeout(() => {
       resetArmed = false;
-      $('resetBtn').textContent = 'Reset demo data';
+      $('resetBtn').textContent = 'Reset my data';
     }, 3000);
     return;
   }
   const { state } = await api.reset();
   setBank(state);
   resetArmed = false;
-  $('resetBtn').textContent = 'Reset demo data';
-  toast('Demo data reset');
+  $('resetBtn').textContent = 'Reset my data';
+  toast('Your data was reset');
 });
 
 // ---------- tools (shared by Grok and the fallback parser) ----------
@@ -981,21 +981,200 @@ $('askForm').addEventListener('submit', async (e) => {
 });
 
 // ---------- boot ----------
+// ---------- accounts ----------
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+let authMode = 'signup';
+function renderAuthMode() {
+  document.querySelectorAll('#authTabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === authMode));
+  $('nameField').hidden = authMode !== 'signup';
+  $('authSubmit').textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+  $('authForm').password.autocomplete = authMode === 'signup' ? 'new-password' : 'current-password';
+  $('authError').hidden = true;
+}
+
+function showAuth({ mode = 'signup', note = '' } = {}) {
+  authMode = mode;
+  renderAuthMode();
+  $('authNote').hidden = !note;
+  $('authNote').textContent = note;
+  $('guestBtn').hidden = Boolean(S.me?.isGuest);
+  show('auth');
+}
+
+$('authTabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  authMode = b.dataset.mode;
+  renderAuthMode();
+});
+
+$('authForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = $('authSubmit');
+  setBusy(btn, true, authMode === 'signup' ? 'Creating account…' : 'Signing in…');
+  try {
+    const fields = { email: f.email.value, password: f.password.value, ...(authMode === 'signup' && { name: f.name.value }) };
+    S.me = await (authMode === 'signup' ? api.signup(fields) : api.login(fields));
+    f.password.value = '';
+    await enterApp();
+  } catch (err) {
+    $('authError').textContent = err.message;
+    $('authError').hidden = false;
+  } finally {
+    setBusy(btn, false);
+  }
+});
+
+$('guestBtn').addEventListener('click', async () => {
+  const btn = $('guestBtn');
+  setBusy(btn, true, 'Starting…');
+  try {
+    S.me = await api.guest();
+    await enterApp();
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    setBusy(btn, false);
+  }
+});
+
+window.addEventListener('stride:signed-out', () => {
+  if (S.view === 'auth') return;
+  S.me = null;
+  if (S.run) S.run.finish();
+  showAuth({ mode: 'login', note: 'Your session ended. Please sign in again.' });
+});
+
+function renderAccount() {
+  const me = S.me;
+  if (!me) return;
+  $('accountName').textContent = me.isGuest ? 'Guest runner' : me.name;
+  $('accountEmail').textContent = me.isGuest ? 'Not saved to an account yet' : me.email;
+  $('guestUpgrade').hidden = !me.isGuest;
+  $('phoneForm').hidden = !S.config.imessage;
+  $('phoneForm').phone.value = me.phone || '';
+  const pushReady = 'serviceWorker' in navigator && 'PushManager' in window && S.config.pushKey;
+  $('notifyBtn').textContent = me.notifications ? 'Turn off notifications' : 'Turn on notifications';
+  $('notifyBtn').disabled = !pushReady && !(isIOS && !isStandalone());
+  $('notifyHint').textContent = me.notifications
+    ? 'Run recaps and goal alerts are on.'
+    : isIOS && !isStandalone()
+      ? 'On iPhone: add Stride to your Home Screen first.'
+      : pushReady
+        ? 'Get a recap after every run.'
+        : 'Not supported in this browser.';
+}
+
+$('signOutBtn').addEventListener('click', async () => {
+  if (S.me?.isGuest && !$('signOutBtn').dataset.armed) {
+    // Guests lose their data on sign-out, so ask for a second tap.
+    $('signOutBtn').dataset.armed = '1';
+    $('signOutBtn').textContent = 'Tap again: guest data will be lost';
+    setTimeout(() => {
+      delete $('signOutBtn').dataset.armed;
+      $('signOutBtn').textContent = 'Sign out';
+    }, 4000);
+    return;
+  }
+  await api.logout().catch(() => {});
+  location.reload();
+});
+
+$('upgradeBtn').addEventListener('click', () => showAuth({ mode: 'signup', note: 'Your runs and savings from this guest session will be kept.' }));
+
+$('phoneForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    S.me = { ...S.me, ...(await api.updateMe({ phone: e.target.phone.value })) };
+    document.activeElement?.blur();
+    renderAccount();
+    toast(S.me.phone ? 'Run recaps will be texted to you' : 'iMessage recaps turned off');
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+function vapidKey(base64) {
+  const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+}
+
+$('notifyBtn').addEventListener('click', async () => {
+  if (isIOS && !isStandalone()) {
+    toast('Tap Share → Add to Home Screen, open Stride from there, then turn on notifications.');
+    return;
+  }
+  const btn = $('notifyBtn');
+  btn.disabled = true;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (S.me.notifications) {
+      if (existing) {
+        await api.pushUnsubscribe(existing.endpoint);
+        await existing.unsubscribe();
+      }
+      S.me.notifications = false;
+    } else {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new Error('Notifications are blocked. Allow them for Stride in Settings.');
+      const sub = existing || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(S.config.pushKey) }));
+      await api.pushSubscribe(sub.toJSON());
+      await api.pushTest();
+      S.me.notifications = true;
+    }
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    btn.disabled = false;
+    renderAccount();
+  }
+});
+
+// Signed in: load this user's data and open the planner.
+async function enterApp() {
+  if (!S.me.notifications) {
+    try {
+      S.me = await api.me();
+    } catch {
+      /* keep what we have */
+    }
+  }
+  setBank(await api.bank());
+  renderAccount();
+  map.clearRun();
+  show('plan');
+}
+
+// ---------- boot ----------
 async function boot() {
   renderPlan();
   setStart(DEFAULT_START, 'default');
   watchLocation();
-  show('plan');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   try {
-    const [config, bank] = await Promise.all([api.config(), api.bank()]);
-    S.config = config;
-    setBank(bank);
-    $('voiceMode').textContent = config.grokVoice ? 'Grok voice' : 'Browser voice';
-    if (!config.grokVoice && config.voiceStatus) $('voiceMode').title = config.voiceStatus;
+    S.config = await api.config();
+    $('voiceMode').textContent = S.config.grokVoice ? 'Grok voice' : 'Browser voice';
+    if (!S.config.grokVoice && S.config.voiceStatus) $('voiceMode').title = S.config.voiceStatus;
   } catch (err) {
     toast(`Can't reach the Stride server: ${err.message}`);
+    return;
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  try {
+    S.me = await api.me();
+  } catch (err) {
+    if (err.status === 401) return showAuth();
+    toast(`Can't reach the Stride server: ${err.message}`);
+    return;
+  }
+  try {
+    await enterApp();
+  } catch (err) {
+    toast(err.message);
+  }
 }
 
 boot();

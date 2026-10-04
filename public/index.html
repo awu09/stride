@@ -60,6 +60,27 @@
       <span class="voice-mode" id="voiceMode">Voice</span>
     </form>
 
+    <!-- AUTH -->
+    <div class="view" data-view="auth" hidden>
+      <div class="auth-hero">
+        <h1>Run. Route. Save.</h1>
+        <p class="muted">Plan runs to places you love. Every mile you run moves money into savings.</p>
+      </div>
+      <p class="notice" id="authNote" hidden></p>
+      <div class="segmented auth-tabs" id="authTabs" role="tablist">
+        <button type="button" data-mode="signup" role="tab">Create account</button>
+        <button type="button" data-mode="login" role="tab">Sign in</button>
+      </div>
+      <form class="auth-form" id="authForm" novalidate>
+        <label id="nameField">Name<input name="name" type="text" autocomplete="name" maxlength="40"></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+        <p class="form-error" id="authError" role="alert" hidden></p>
+        <button class="primary" type="submit" id="authSubmit">Create account</button>
+      </form>
+      <button class="link center" id="guestBtn" type="button">Try it as a guest</button>
+    </div>
+
     <!-- PLAN -->
     <div class="view" data-view="plan">
       <div class="sheet-head">
@@ -190,6 +211,28 @@
         </div>
       </div>
 
+      <div class="card account" id="accountCard">
+        <div class="account-head">
+          <div>
+            <div class="card-title" id="accountName"></div>
+            <span class="muted small" id="accountEmail"></span>
+          </div>
+          <button class="link" id="signOutBtn" type="button">Sign out</button>
+        </div>
+        <div class="guest-upgrade" id="guestUpgrade" hidden>
+          <p class="small">You're using a guest account. Create an account to keep your runs and savings.</p>
+          <button class="primary sm" id="upgradeBtn" type="button">Create account</button>
+        </div>
+        <div class="row">
+          <button class="secondary sm" id="notifyBtn" type="button">Turn on notifications</button>
+          <span class="muted small" id="notifyHint"></span>
+        </div>
+        <form class="row phone-form" id="phoneForm" hidden>
+          <label>iMessage recaps to<input name="phone" type="tel" autocomplete="tel" placeholder="+15551234567"></label>
+          <button class="secondary sm" type="submit">Save</button>
+        </form>
+      </div>
+
       <div class="card nessie" id="nessieCard" hidden>
         <div class="nessie-head">
           <span class="nessie-dot" aria-hidden="true"></span>
@@ -215,7 +258,7 @@
 
       <h2>Activity</h2>
       <ul class="tx-list" id="txList"></ul>
-      <button class="link danger-text" id="resetBtn" type="button">Reset demo data</button>
+      <button class="link danger-text" id="resetBtn" type="button">Reset my data</button>
     </div>
   </section>
 

@@ -30,7 +30,9 @@ No money is created: you are paying yourself, with your runs as the trigger.
 | 🗣️ **Voice coach** | Spoken turn-by-turn cues, mile splits, and a conversational coach (Grok voice) that can plan routes, start runs, and move money by voice. Falls back to the browser's built-in voice. |
 | 📍 **Live GPS tracking** | Strava-style distance from real GPS with jitter smoothing and glitch filtering. A live blue dot, a GPS signal indicator, off-route warnings, and automatic arrival detection. |
 | 🏦 **Capital One Nessie** | Every reward, penalty and purchase is recorded in Nessie. **Verify balances** rebuilds both balances from Nessie's transaction history. |
-| 💬 **iMessage recaps** | After each run, a recap is texted to you via Photon's iMessage kit. Reply `BALANCE`, `RUNS` or `SKIP`. |
+| 👤 **Accounts** | Email + password sign-in (scrypt-hashed, cookie sessions), or **try as a guest** and upgrade later without losing data. Every user has their own runs, goal and Nessie accounts. |
+| 🔔 **Push notifications** | Run recaps and goal alerts on iPhone (home-screen app, iOS 16.4+) and desktop browsers, via Web Push. |
+| 💬 **iMessage recaps** | When the server runs on a Mac, Photon's iMessage kit texts each user a recap. Reply `BALANCE`, `RUNS` or `SKIP`. |
 | 📱 **Installable on iPhone** | A Progressive Web App: *Share → Add to Home Screen* for a full-screen app with its own icon. |
 | 🧪 **Demo mode** | *Simulate* moves a virtual runner along the route at 1×–60× for indoor demos. |
 
@@ -114,12 +116,26 @@ npm start               # → http://localhost:3000
 | `XAI_API_KEY` | Grok voice ([console.x.ai](https://console.x.ai)) | Browser speech + keyword commands |
 | `XAI_VOICE` | Grok voice name (default `eve`) | |
 | `NESSIE_API_KEY` | Capital One Nessie ([nessieisreal.com](http://nessieisreal.com)) | Local ledger only |
-| `IMESSAGE_TO` | Phone number for run recaps, e.g. `+15551234567` | No texts |
+| `DATABASE_PATH` | SQLite file (default `data/stride.db`); on a cloud host, a persistent disk | |
+| `VAPID_SUBJECT` | Contact for push services, e.g. `mailto:you@example.com` | |
+| `IMESSAGE_ENABLED` | `1` to text run recaps (macOS host only; users add their number in Wallet) | No texts |
 | `PORT` | Server port (default `3000`) | |
+
+Push-notification keys are generated on first start and stored beside the database.
 
 The server prints the status of each integration on startup.
 
-### On an iPhone
+### Deploy to the cloud
+The repo includes a `Dockerfile` and a Render blueprint (`render.yaml`):
+
+1. On [render.com](https://render.com): **New → Blueprint** → pick this repo.
+2. Fill in `XAI_API_KEY`, `NESSIE_API_KEY` and `VAPID_SUBJECT` when asked.
+3. Render builds the container, mounts a disk at `/data` for the database, and gives you a permanent `https://…onrender.com` link.
+
+Any Docker host works (Fly.io, Railway, a VPS): run the image with a volume at `/data`.
+iMessage recaps need a Mac host, so they're off in the cloud; push notifications replace them.
+
+### On an iPhone (local server)
 Phones only allow GPS and the microphone on **https**, so expose the server with a tunnel:
 
 ```bash
@@ -138,8 +154,11 @@ Sending works without it.
 ```
 server.js              Express server, API routes, Grok voice WebSocket proxy
 lib/
+  db.js                SQLite schema (users, sessions, banks, transactions, runs, push)
+  auth.js              Sign-up, sign-in, guest accounts, sessions
+  push.js              Web Push notifications
   planner.js           Place search + distance-matched walking routes
-  bank.js              Ledger: rewards, purchases, penalties, runs
+  bank.js              Per-user ledger: rewards, purchases, penalties, runs
   nessie.js            Capital One Nessie mirror + balance verification
   imessage.js          Run recaps and text commands (Photon imessage-kit)
 public/
@@ -152,7 +171,8 @@ public/
   js/voice.js          Grok realtime client + Web Speech fallback
   js/commands.js       Keyword command parser
   js/geo.js            Geometry and formatting helpers
-data/                  Local state (git-ignored)
+data/                  Database + push keys (git-ignored)
+Dockerfile, render.yaml  Cloud deployment
 ```
 
 ## Built with
@@ -170,9 +190,12 @@ data/                  Local state (git-ignored)
 - Public map servers are fine for demos; a production app would self-host OSRM/Photon or use a commercial provider.
 - Nessie is a sandbox with fake money.
 - iMessage requires the server to run on a Mac signed into Messages.
+- The web app can't track GPS with the iPhone screen locked; a native app would.
 
 ## Future work
 
+- **Native iPhone app** (React Native/Expo) for background GPS, Apple Watch and HealthKit.
+- **Real accounts via Plaid**, starting read-only with user-approved transfers.
 - **Partner cash back:** cafés pay to be route destinations; runners get cash back into savings.
 - **Group goals:** running clubs pool miles toward a shared goal.
 - **Streak multipliers** and custom rules (e.g. $2/mile on hills).

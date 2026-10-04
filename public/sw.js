@@ -1,5 +1,6 @@
-// Network-first app shell cache so Stride opens instantly from the home screen.
-const CACHE = 'stride-v5';
+// Network-first app shell cache so Stride opens instantly from the home screen,
+// plus push notifications (run recaps, goal alerts).
+const CACHE = 'stride-v6';
 const SHELL = ['/', '/styles.css', '/js/app.js', '/js/api.js', '/js/map.js', '/js/run.js', '/js/voice.js', '/js/geo.js', '/js/commands.js', '/js/mic-worklet.js', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -21,5 +22,33 @@ self.addEventListener('fetch', (e) => {
         return res;
       })
       .catch(() => caches.match(e.request)),
+  );
+});
+
+self.addEventListener('push', (e) => {
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    data = { body: e.data?.text() };
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Stride', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const target = e.notification.data?.url || '/';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      const open = wins.find((w) => new URL(w.url).origin === location.origin);
+      return open ? open.focus() : self.clients.openWindow(target);
+    }),
   );
 });
