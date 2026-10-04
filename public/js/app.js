@@ -4,6 +4,7 @@ import { RunSession } from './run.js';
 import { GrokVoice, BrowserVoice, speak } from './voice.js';
 import { parseCommand } from './commands.js';
 import { money, formatClock, formatPace, formatDistanceShort, spokenDistance } from './geo.js';
+import { initChallenges } from './challenges.js';
 
 const DEFAULT_START = { lat: 42.3554, lng: -71.0656 }; // Boston Common
 const DEFAULT_PACE = 570; // 9:30 / mi, used until the runner has history
@@ -144,10 +145,11 @@ function renderTransactions() {
   list.replaceChildren(
     ...S.bank.transactions.slice(0, 25).map((t) => {
       const li = document.createElement('li');
-      const toGoal = t.type === 'transfer';
+      const toGoal = t.type === 'transfer' || t.type === 'pledge_in';
+      const pledge = t.type.startsWith('pledge');
       const date = new Date(t.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       li.innerHTML = `
-        <span class="tx-icon ${toGoal ? 'in' : 'out'}">${toGoal ? '↗' : '☕'}</span>
+        <span class="tx-icon ${pledge ? 'pledge' : toGoal ? 'in' : 'out'}">${pledge ? '🤝' : toGoal ? '↗' : '☕'}</span>
         <span class="tx-body"><span class="tx-memo"></span><span class="tx-date">${date}${t.budget != null ? ` · budget ${money(t.budget)}` : ''}${t.nessie ? ' · <span class="synced">Nessie ✓</span>' : t.nessieError ? ' · <span class="unsynced">not synced</span>' : ''}</span></span>
         <span class="tx-amt ${toGoal ? 'in' : 'out'}">${toGoal ? '+' : '−'}${money(t.amount)}</span>`;
       li.querySelector('.tx-memo').textContent = t.memo;
@@ -385,7 +387,11 @@ function startRun() {
   );
   S.run.start();
   keepAwake(true);
-  cue(`Let's go! ${route.miles.toFixed(1)} miles to ${route.place.name}. ${route.steps[0]?.text ?? ''}.`);
+  const backed = challengeUI.openOwn().filter((c) => c.totals.backers > 0);
+  const backing = backed.length
+    ? ` This run counts toward ${backed[0].title}: ${backed[0].totals.backers} backer${backed[0].totals.backers === 1 ? '' : 's'} pledged ${money(backed[0].totals.ifSuccess)}.`
+    : '';
+  cue(`Let's go! ${route.miles.toFixed(1)} miles to ${route.place.name}.${backing} ${route.steps[0]?.text ?? ''}.`);
 
   if (S.config.grokVoice && !grok) connectGrok();
 }
@@ -457,6 +463,7 @@ async function finishRun(arrived) {
   if (!S.run || S.finishing) return;
   S.finishing = true;
   const st = S.run.stats();
+  const mode = S.run.mode;
   S.run.finish();
   keepAwake(false);
   const route = S.runRoute;
@@ -472,9 +479,11 @@ async function finishRun(arrived) {
       toast(err.message);
     }
   }
+  let challengeLine = '';
   try {
-    const { state } = await api.recordRun({ miles: st.miles, seconds: st.elapsed, earned: S.runEarned, destination: route.place.name });
+    const { state, challenges } = await api.recordRun({ miles: st.miles, seconds: st.elapsed, earned: S.runEarned, destination: route.place.name, mode });
     setBank(state);
+    challengeLine = challengeUI.showResults(challenges);
   } catch (err) {
     toast(err.message);
   }
@@ -491,6 +500,7 @@ async function finishRun(arrived) {
           (budget != null ? ` Your budget here is ${money(budget)}. Tell me what you spend.` : '')
       : `Run ended. ${st.miles.toFixed(1)} miles and ${money(S.runEarned)} earned. Nice work.`,
   );
+  if (challengeLine) cue(challengeLine);
 }
 
 $('modeToggle').addEventListener('click', (e) => {
@@ -754,6 +764,12 @@ const TOOL_DEFS = [
   },
   {
     type: 'function',
+    name: 'get_challenges',
+    description: "The runner's open challenges: goal, deadline, progress, how many friends backed it and how much they pledged.",
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    type: 'function',
     name: 'transfer_to_savings',
     description: 'Move money from checking into the savings goal.',
     parameters: {
@@ -848,6 +864,14 @@ const tools = {
       recent: b.transactions.slice(0, 3).map((t) => ({ type: t.type, amount: t.amount, memo: t.memo })),
     };
   },
+  async get_challenges() {
+    const { own } = await challengeUI.refresh();
+    return {
+      open: own
+        .filter((c) => c.status === 'open')
+        .map((c) => ({ title: c.title, goal_miles: c.miles, kind: c.kind, progress_miles: c.progressMiles, backers: c.totals.backers, pledged_if_success: c.totals.ifSuccess, ends: c.endsAt })),
+    };
+  },
   async transfer_to_savings({ amount_dollars, reason }) {
     const { state } = await api.transfer(amount_dollars, reason || 'Voice transfer');
     setBank(state);
@@ -881,6 +905,10 @@ function replyFor(tool, r) {
         : "You're not running right now.";
     case 'get_savings':
       return `You've saved ${money(r.saved)} of ${money(r.target)} for your ${r.goal}. That's ${r.percent} percent. ${r.projection}`;
+    case 'get_challenges':
+      return r.open.length
+        ? r.open.map((c) => `${c.title}: ${c.progress_miles.toFixed(1)} of ${c.goal_miles} miles, ${c.backers} backers, ${money(c.pledged_if_success)} pledged`).join('. ')
+        : "You don't have any open challenges. Create one from the Challenges button.";
     case 'transfer_to_savings':
       return `Done. Moved ${money(r.moved)}. Your ${r.goal} is at ${money(r.saved)}.`;
     case 'log_purchase':
@@ -981,6 +1009,22 @@ $('askForm').addEventListener('submit', async (e) => {
 });
 
 // ---------- boot ----------
+// ---------- challenges ----------
+const challengeUI = initChallenges({
+  show,
+  toast,
+  setBusy,
+  cue,
+  planFor(miles) {
+    // Routes land within ~7% of the target, sometimes short; aim long so the run counts.
+    S.plan.miles = Math.min(Math.max(Math.ceil(miles * 1.06 * 10) / 10, 0.5), 13.1);
+    renderPlan();
+    show('plan');
+    toast(miles > 13.1 ? 'Route planning tops out at 13.1 mi. Plan a long loop and keep going!' : `Set to ${S.plan.miles} mi so the run covers your ${miles} mi goal. Pick a destination.`);
+  },
+  back: () => show('plan'),
+});
+
 // ---------- accounts ----------
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -1147,6 +1191,12 @@ async function enterApp() {
   renderAccount();
   map.clearRun();
   show('plan');
+  await challengeUI.refresh();
+  const link = location.pathname.match(/^\/c\/([a-z0-9]+)$/i);
+  if (link) {
+    history.replaceState(null, '', '/');
+    challengeUI.open(link[1]);
+  }
 }
 
 // ---------- boot ----------
@@ -1166,7 +1216,21 @@ async function boot() {
   try {
     S.me = await api.me();
   } catch (err) {
-    if (err.status === 401) return showAuth();
+    if (err.status === 401) {
+      const link = location.pathname.match(/^\/c\/([a-z0-9]+)$/i);
+      if (link) {
+        try {
+          const c = await api.publicChallenge(link[1]);
+          return showAuth({
+            mode: 'signup',
+            note: `${c.runner.name} is going for “${c.title}” (${c.totals.backers} backer${c.totals.backers === 1 ? '' : 's'} so far). Create an account or continue as a guest to back them.`,
+          });
+        } catch {
+          /* fall through to the normal sign-in screen */
+        }
+      }
+      return showAuth();
+    }
     toast(`Can't reach the Stride server: ${err.message}`);
     return;
   }

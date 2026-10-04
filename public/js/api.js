@@ -36,4 +36,11 @@ export const api = {
   reset: () => post('/api/bank/reset'),
   verify: () => request('/api/bank/verify'),
   routes: (params) => post('/api/routes', params),
+  challenges: () => request('/api/challenges'),
+  challenge: (code) => request(`/api/challenges/${encodeURIComponent(code)}`),
+  publicChallenge: (code) => request(`/api/public/challenges/${encodeURIComponent(code)}`),
+  createChallenge: (fields) => post('/api/challenges', fields),
+  cancelChallenge: (code) => request(`/api/challenges/${encodeURIComponent(code)}`, { method: 'DELETE' }),
+  pledge: (code, fields) => post(`/api/challenges/${encodeURIComponent(code)}/pledge`, fields),
+  unpledge: (code) => request(`/api/challenges/${encodeURIComponent(code)}/pledge`, { method: 'DELETE' }),
 };

@@ -88,6 +88,7 @@
         <button class="link" id="locateBtn" type="button">Use my location</button>
       </div>
       <p class="muted small" id="startLabel"></p>
+      <button class="challenge-link" id="challengesBtn" type="button">🏁 Challenges <span class="muted" id="challengesHint">Get friends to back your runs</span></button>
 
       <div class="field">
         <div class="field-label"><span>Distance</span><output id="milesOut">3.1 mi</output></div>
@@ -184,12 +185,105 @@
         <div id="purchaseResult" hidden></div>
       </div>
 
+      <div class="card ch-result" id="challengeResult" hidden></div>
+
       <div class="card">
         <div class="card-title" id="recapGoalLine"></div>
         <div class="progress"><i id="recapGoalBar"></i></div>
         <p class="muted small" id="goalProjection"></p>
       </div>
       <button class="primary" id="againBtn" type="button">Plan another run</button>
+    </div>
+
+    <!-- CHALLENGES: list -->
+    <div class="view" data-view="challenges" hidden>
+      <div class="sheet-head">
+        <button class="icon-btn" id="challengesBack" type="button" aria-label="Back">←</button>
+        <h1>Challenges</h1>
+        <button class="link" id="newChallengeBtn" type="button">＋ New</button>
+      </div>
+      <p class="muted small">Set a goal, share the link, and let friends and family pledge. Pledges land in your savings when you make it.</p>
+      <h2>Yours</h2>
+      <div class="ch-list" id="myChallenges"></div>
+      <h2>You're backing</h2>
+      <div class="ch-list" id="backingChallenges"></div>
+    </div>
+
+    <!-- CHALLENGES: create -->
+    <div class="view" data-view="challenge-new" hidden>
+      <div class="sheet-head">
+        <button class="icon-btn" id="newChallengeBack" type="button" aria-label="Back">←</button>
+        <h1>New challenge</h1>
+      </div>
+      <form class="auth-form" id="challengeForm" novalidate>
+        <label>Name<input name="title" type="text" maxlength="60" placeholder="Boston Marathon" required></label>
+        <div class="segmented auth-tabs" id="kindToggle" role="group" aria-label="Challenge type">
+          <button type="button" data-kind="run">One run or race</button>
+          <button type="button" data-kind="total">Total miles</button>
+        </div>
+        <p class="muted small" id="kindHint"></p>
+        <label>Distance (miles)<input name="miles" type="number" min="0.1" step="0.1" inputmode="decimal" value="3.1"></label>
+        <div class="chips" id="challengeDistanceChips">
+          <button type="button" data-miles="3.1">5K</button>
+          <button type="button" data-miles="6.2">10K</button>
+          <button type="button" data-miles="13.1">Half</button>
+          <button type="button" data-miles="26.2">Marathon</button>
+        </div>
+        <label id="targetField">Time goal (optional)<input name="target" type="text" inputmode="numeric" placeholder="27:00 or 3:45:00"></label>
+        <label>Deadline<input name="ends" type="date" required></label>
+        <label>Message to backers (optional)<input name="message" type="text" maxlength="140" placeholder="Training for my first marathon!"></label>
+        <p class="form-error" id="challengeError" role="alert" hidden></p>
+        <button class="primary" type="submit" id="challengeSubmit">Create challenge</button>
+      </form>
+    </div>
+
+    <!-- CHALLENGES: detail -->
+    <div class="view" data-view="challenge" hidden>
+      <div class="sheet-head">
+        <button class="icon-btn" id="challengeBack" type="button" aria-label="Back">←</button>
+        <h1 id="chTitle"></h1>
+      </div>
+      <p class="muted small" id="chMeta"></p>
+      <p class="ch-status" id="chStatus"></p>
+      <div class="ch-stats">
+        <div><b id="chPledged">$0</b><span id="chPledgedLabel">if they finish</span></div>
+        <div><b id="chBackers">0</b><span>backers</span></div>
+        <div><b id="chPredict">–</b><span>crowd guess</span></div>
+      </div>
+      <div class="progress"><i id="chProgress"></i></div>
+      <p class="muted small" id="chProgressText"></p>
+      <p class="ch-message" id="chMessage" hidden></p>
+      <p class="ch-outcome" id="chOutcome" hidden></p>
+
+      <div id="chOwnerActions" hidden>
+        <button class="primary" id="chShare" type="button">Share with friends</button>
+        <button class="secondary block" id="chRun" type="button">Plan a run for this</button>
+        <button class="link danger-text" id="chCancel" type="button">Cancel challenge</button>
+      </div>
+
+      <form class="card pledge-form" id="pledgeForm" hidden>
+        <div class="card-title" id="pledgeTitle">Back this challenge</div>
+        <label>If they finish
+          <span class="money-input"><span>$</span><input name="flat" type="number" min="0" step="1" inputmode="decimal" placeholder="0"></span>
+        </label>
+        <div class="chips" id="flatChips">
+          <button type="button" data-v="5">$5</button>
+          <button type="button" data-v="10">$10</button>
+          <button type="button" data-v="25">$25</button>
+        </div>
+        <label>Per mile they run (optional)
+          <span class="money-input"><span>$</span><input name="perMile" type="number" min="0" step="0.25" inputmode="decimal" placeholder="0"></span>
+        </label>
+        <label id="predictField">Predict their finish time (optional, just for fun)<input name="predict" type="text" inputmode="numeric" placeholder="27:30"></label>
+        <label>Message (optional)<input name="message" type="text" maxlength="140" placeholder="You've got this!"></label>
+        <p class="muted small" id="pledgeFine"></p>
+        <p class="form-error" id="pledgeError" role="alert" hidden></p>
+        <button class="primary" type="submit" id="pledgeSubmit">Back this run</button>
+        <button class="link center" id="pledgeWithdraw" type="button" hidden>Withdraw my pledge</button>
+      </form>
+
+      <h2>Backers</h2>
+      <ul class="backer-list" id="backerList"></ul>
     </div>
 
     <!-- WALLET -->

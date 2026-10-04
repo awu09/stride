@@ -9,6 +9,7 @@ import { planRoutes } from './lib/planner.js';
 import * as imessage from './lib/imessage.js';
 import * as auth from './lib/auth.js';
 import * as push from './lib/push.js';
+import * as challenges from './lib/challenges.js';
 import { db } from './lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -91,6 +92,11 @@ app.post('/api/auth/login', respond((req, res) => auth.login(req, res)));
 app.post('/api/auth/guest', respond((req, res) => auth.guest(req, res, { onCreate })));
 app.post('/api/auth/logout', respond((req, res) => auth.logout(req, res)));
 
+// Challenge share links open the app; the page loads the challenge from the URL.
+app.get('/c/:code', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// Anyone with the link can see a challenge, signed in or not.
+app.get('/api/public/challenges/:code', handle((req) => challenges.get(req.params.code, auth.userFromRequest(req)?.id)));
+
 // Everything below needs a signed-in user (guest accounts count).
 app.use('/api', auth.requireUser);
 
@@ -118,8 +124,11 @@ app.post('/api/bank/transfer', handle(async (req) => celebrate(req.user.id, awai
 app.post('/api/bank/purchase', handle((req) => bank.purchase(req.user.id, req.body)));
 app.post('/api/bank/penalty', handle(async (req) => celebrate(req.user.id, await bank.skipPenalty(req.user.id))));
 app.post('/api/bank/goal', handle((req) => bank.updateGoal(req.user.id, req.body)));
-app.post('/api/bank/runs', handle((req) => {
+app.post('/api/bank/runs', handle(async (req) => {
   const result = bank.recordRun(req.user.id, req.body);
+  // A run can complete challenges; settling moves backers' pledges into this runner's savings.
+  result.challenges = await challenges.onRun(req.user.id);
+  if (result.challenges.length) result.state = bank.getState(req.user.id);
   const { run, state } = result;
   imessage.sendRunRecap(req.user, run, state);
   if (run.miles >= 0.05) {
@@ -130,6 +139,14 @@ app.post('/api/bank/runs', handle((req) => {
   }
   return result;
 }));
+// ---- Challenges & pledges ----
+app.get('/api/challenges', handle((req) => challenges.list(req.user.id)));
+app.post('/api/challenges', handle((req) => challenges.create(req.user.id, req.body)));
+app.get('/api/challenges/:code', handle((req) => challenges.get(req.params.code, req.user.id)));
+app.delete('/api/challenges/:code', handle((req) => challenges.cancel(req.user.id, req.params.code)));
+app.post('/api/challenges/:code/pledge', handle((req) => challenges.pledge(req.user.id, req.params.code, req.body)));
+app.delete('/api/challenges/:code/pledge', handle((req) => challenges.unpledge(req.user.id, req.params.code)));
+
 app.post('/api/bank/reset', handle((req) => bank.reset(req.user.id)));
 app.get('/api/bank/verify', handle((req) => bank.verifyNessie(req.user.id)));
 
@@ -234,6 +251,9 @@ server.listen(PORT, async () => {
   await imessage.start({ bank });
   auth.cleanup();
   setInterval(auth.cleanup, 6 * 3600000).unref();
+  // Settle challenges whose deadline passed.
+  challenges.sweep();
+  setInterval(() => challenges.sweep(), 60000).unref();
   const users = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
   console.log(`  iMessage:   ${imessage.enabled ? `on${imessage.reason ? ` (replies off: ${imessage.reason})` : ''}` : `off — ${imessage.reason}`}`);
   console.log(`  Users:      ${users}\n`);

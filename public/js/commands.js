@@ -51,6 +51,7 @@ export function parseCommand(raw) {
     };
   }
 
+  if (/challenge|pledge|backer|backing/.test(t)) return { tool: 'get_challenges', args: {} };
   if (/\b(start|begin|let'?s go|go go)\b/.test(t)) return { tool: 'start_run', args: {} };
   if (/\b(end|stop|finish)\b/.test(t)) return { tool: 'end_run', args: {} };
   if (/sav|fund|goal|balance|money|bank|account|how much/.test(t)) return { tool: 'get_savings', args: {} };

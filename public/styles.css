@@ -541,3 +541,54 @@ body[data-view='auth'] .ask { display: none; }
 .guest-upgrade p { margin: 0 0 10px; }
 .phone-form { align-items: end; }
 .phone-form label { flex: 1; min-width: 180px; }
+
+/* ---------- challenges ---------- */
+.challenge-link {
+  display: flex; align-items: baseline; gap: 8px; width: 100%;
+  margin-top: 12px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface-2); text-align: left; font-weight: 600;
+}
+.challenge-link .muted { font-weight: 400; font-size: 13px; }
+.ch-list { display: grid; gap: 10px; }
+.ch-card {
+  display: grid; gap: 6px; padding: 14px;
+  border: 1px solid var(--border); border-radius: 16px; background: var(--surface); text-align: left;
+}
+.ch-card-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.ch-card-title { font-weight: 600; }
+.ch-card-meta { font-size: 13px; color: var(--muted); }
+.ch-empty { margin: 0; font-size: 13px; color: var(--muted); }
+.pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; background: var(--surface-2); color: var(--muted); }
+.pill.open { background: var(--good-bg); color: var(--good); }
+.pill.completed { background: var(--accent); color: var(--accent-ink); }
+.pill.missed { background: var(--warn-bg); color: var(--warn); }
+.ch-status { margin: 8px 0 0; }
+.ch-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.ch-stats div { display: grid; padding: 10px 6px; border-radius: 14px; background: var(--surface-2); text-align: center; }
+.ch-stats b { font: 700 20px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.ch-stats span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.ch-stats div:first-child { background: var(--accent); color: var(--accent-ink); }
+.ch-stats div:first-child span { color: inherit; opacity: 0.7; }
+.ch-message { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 10px 10px 0; font-style: italic; }
+.ch-outcome { margin: 10px 0 0; padding: 12px; border-radius: 12px; background: var(--good-bg); color: var(--good); font-weight: 500; }
+.ch-outcome.missed { background: var(--warn-bg); color: var(--warn); }
+#chOwnerActions .primary { margin-top: 14px; }
+.pledge-form { display: grid; gap: 10px; }
+.pledge-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.pledge-form .money-input input { width: 100%; }
+.pledge-form > label > input {
+  padding: 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface-2); color: var(--text); font-size: 16px;
+}
+.pledge-form .primary { margin-top: 4px; }
+.pledge-form #pledgeFine { margin: 0; }
+.backer-list { list-style: none; margin: 0; padding: 0; }
+.backer-list li { display: grid; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.backer-top { display: flex; justify-content: space-between; gap: 10px; }
+.backer-name { font-weight: 600; }
+.backer-what { font-size: 13px; color: var(--muted); }
+.backer-msg { font-size: 14px; font-style: italic; }
+.ch-result { display: grid; gap: 6px; border-color: var(--accent); }
+.ch-result p { margin: 0; }
+.tx-icon.pledge { background: var(--accent); color: var(--accent-ink); }

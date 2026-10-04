@@ -1,7 +1,7 @@
 // Network-first app shell cache so Stride opens instantly from the home screen,
 // plus push notifications (run recaps, goal alerts).
-const CACHE = 'stride-v6';
-const SHELL = ['/', '/styles.css', '/js/app.js', '/js/api.js', '/js/map.js', '/js/run.js', '/js/voice.js', '/js/geo.js', '/js/commands.js', '/js/mic-worklet.js', '/icon.svg'];
+const CACHE = 'stride-v7';
+const SHELL = ['/', '/styles.css', '/js/app.js', '/js/api.js', '/js/map.js', '/js/run.js', '/js/voice.js', '/js/geo.js', '/js/commands.js', '/js/challenges.js', '/js/mic-worklet.js', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

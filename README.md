@@ -30,6 +30,7 @@ No money is created: you are paying yourself, with your runs as the trigger.
 | 🗣️ **Voice coach** | Spoken turn-by-turn cues, mile splits, and a conversational coach (Grok voice) that can plan routes, start runs, and move money by voice. Falls back to the browser's built-in voice. |
 | 📍 **Live GPS tracking** | Strava-style distance from real GPS with jitter smoothing and glitch filtering. A live blue dot, a GPS signal indicator, off-route warnings, and automatic arrival detection. |
 | 🏦 **Capital One Nessie** | Every reward, penalty and purchase is recorded in Nessie. **Verify balances** rebuilds both balances from Nessie's transaction history. |
+| 🏁 **Challenges & pledges** | Set a race, a timed run or a mileage goal, share the link, and friends pledge: **flat** (paid if you make it) or **per mile** (paid for miles run, capped), plus just-for-fun **finish-time predictions**. A qualifying run settles it automatically: pledges move from each backer's checking into your savings goal, mirrored to Nessie for both people. |
 | 👤 **Accounts** | Email + password sign-in (scrypt-hashed, cookie sessions), or **try as a guest** and upgrade later without losing data. Every user has their own runs, goal and Nessie accounts. |
 | 🔔 **Push notifications** | Run recaps and goal alerts on iPhone (home-screen app, iOS 16.4+) and desktop browsers, via Web Push. |
 | 💬 **iMessage recaps** | When the server runs on a Mac, Photon's iMessage kit texts each user a recap. Reply `BALANCE`, `RUNS` or `SKIP`. |
@@ -83,6 +84,15 @@ A local ledger keeps the UI instant and every movement is mirrored to Capital On
 
 Nessie stores whole numbers and doesn't update balances on its own, so amounts are sent in **cents** and
 `verify()` recomputes balances as *opening balance + deposits − withdrawals − purchases*.
+
+### Challenges (`lib/challenges.js`, `public/js/challenges.js`)
+- **Types:** `run` (one run covers the distance, optionally under a time goal) or `total` (miles add up before the deadline).
+- **Pledges are support, not bets:** money only flows from backers to the runner's savings, never between backers, so there's no wager.
+- **Settlement:** after each recorded run, open challenges are checked; a completed one pays every pledge in one pass
+  (claimed atomically so it can't pay twice). At the deadline, a background sweep closes missed challenges:
+  per-mile pledges pay for miles run and flat pledges are released.
+- **Anti-cheat:** simulated runs don't count in production (`NODE_ENV=production`, override with `ALLOW_SIM_CHALLENGES`).
+- **Sharing:** `/c/<code>` links open the challenge; signed-out visitors see who they're backing, then sign up or continue as a guest.
 
 ### Voice (`server.js`, `public/js/voice.js`)
 The browser streams 24 kHz PCM microphone audio over a WebSocket to `/realtime`. The server relays it to
@@ -157,6 +167,7 @@ lib/
   db.js                SQLite schema (users, sessions, banks, transactions, runs, push)
   auth.js              Sign-up, sign-in, guest accounts, sessions
   push.js              Web Push notifications
+  challenges.js        Challenges, pledges, predictions and settlement
   planner.js           Place search + distance-matched walking routes
   bank.js              Per-user ledger: rewards, purchases, penalties, runs
   nessie.js            Capital One Nessie mirror + balance verification
@@ -170,6 +181,7 @@ public/
   js/map.js            Leaflet map, routes, live location dot
   js/voice.js          Grok realtime client + Web Speech fallback
   js/commands.js       Keyword command parser
+  js/challenges.js     Challenge list, create form, detail + pledge form
   js/geo.js            Geometry and formatting helpers
 data/                  Database + push keys (git-ignored)
 Dockerfile, render.yaml  Cloud deployment
